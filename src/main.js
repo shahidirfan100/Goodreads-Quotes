@@ -67,6 +67,9 @@ async function main() {
                     if (q) {
                         apiUrl = `https://www.goodreads.com/quotes/search?format=json&q=${encodeURIComponent(q)}&page=${page}`;
                     }
+                } else if (url.includes('/quotes')) {
+                    // Handle basic quotes page
+                    apiUrl = `https://www.goodreads.com/quotes?format=json&page=${page}`;
                 }
 
                 if (!apiUrl) return null;
@@ -88,7 +91,7 @@ async function main() {
                 }
                 return null;
             } catch (err) {
-                log.debug(`JSON API failed for ${url}: ${err.message}`);
+                log.debug(`JSON API failed for ${url} page ${page}: ${err.message}`);
                 return null;
             }
         }
@@ -96,7 +99,11 @@ async function main() {
         // Parse quotes from HTML
         function parseHtmlQuotes($) {
             const quotes = [];
-            $('div.quote, div.quoteDetails').each((_, elem) => {
+            // Try multiple container selectors to be more robust
+            const containers = $('div.quote, div.quoteDetails, .quote, .quoteDetails');
+            crawlerLog.info(`Found ${containers.length} quote containers on page`);
+
+            containers.each((_, elem) => {
                 try {
                     const $elem = $(elem);
                     
@@ -152,29 +159,46 @@ async function main() {
                     log.debug(`Failed to parse quote element: ${err.message}`);
                 }
             });
+            crawlerLog.info(`Extracted ${quotes.length} quotes from HTML parsing`);
             return quotes;
         }
 
         // Find next page link
         function findNextPage($, currentUrl) {
-            // Use specific selector for next page
-            const nextLink = $('div.pagination > a.next_page').attr('href');
-            if (nextLink) return toAbs(nextLink, currentUrl);
-
-            // Fallback to last pagination link
-            const lastPageLink = $('div.pagination > a:last-of-type').attr('href');
-            if (lastPageLink && !lastPageLink.includes('#')) return toAbs(lastPageLink, currentUrl);
-
-            // Alternative fallback for numbered pagination
-            const pageLinks = $('div.pagination a[href*="page="]');
-            if (pageLinks.length > 0) {
-                const urlObj = new URL(currentUrl);
-                const currentPage = parseInt(urlObj.searchParams.get('page') || '1', 10);
-                urlObj.searchParams.set('page', String(currentPage + 1));
-                return urlObj.href;
+            // Try to find actual next page links first
+            const nextLink = $('a.next_page').attr('href') ||
+                           $('div.pagination a.next_page').attr('href') ||
+                           $('a[rel="next"]').attr('href');
+            if (nextLink) {
+                log.debug(`Found next page link: ${nextLink}`);
+                return toAbs(nextLink, currentUrl);
             }
 
-            return null;
+            // Check for any pagination links that might indicate more pages
+            const paginationLinks = $('div.pagination a');
+            if (paginationLinks.length > 0) {
+                // Look for the last pagination link that might be "next"
+                const lastLink = paginationLinks.last().attr('href');
+                if (lastLink && !lastLink.includes('#') && !lastLink.includes('javascript:')) {
+                    log.debug(`Using last pagination link: ${lastLink}`);
+                    return toAbs(lastLink, currentUrl);
+                }
+            }
+
+            // If no explicit pagination links found, construct next page URL
+            // Goodreads uses ?page= format for pagination
+            try {
+                const urlObj = new URL(currentUrl);
+                const currentPage = parseInt(urlObj.searchParams.get('page') || '1', 10);
+                const nextPage = currentPage + 1;
+                urlObj.searchParams.set('page', String(nextPage));
+                const nextUrl = urlObj.href;
+                log.debug(`Constructed next page URL: ${nextUrl} (from page ${currentPage} to ${nextPage})`);
+                return nextUrl;
+            } catch (err) {
+                log.debug(`Failed to construct next page URL: ${err.message}`);
+                return null;
+            }
         }
 
         const crawler = new CheerioCrawler({
@@ -237,16 +261,16 @@ async function main() {
                 if (saved < RESULTS_WANTED && pageNo < MAX_PAGES) {
                     const nextUrl = findNextPage($, request.url);
                     if (nextUrl) {
-                        crawlerLog.info(`Enqueueing next page: ${nextUrl}`);
-                        await enqueueLinks({ 
-                            urls: [nextUrl], 
-                            userData: { pageNo: pageNo + 1 } 
+                        crawlerLog.info(`Enqueueing next page: ${nextUrl} (current saved: ${saved}, page: ${pageNo})`);
+                        await enqueueLinks({
+                            urls: [nextUrl],
+                            userData: { pageNo: pageNo + 1 }
                         });
                     } else {
-                        crawlerLog.info('No next page found');
+                        crawlerLog.info(`No next page found for ${request.url} (saved: ${saved}, page: ${pageNo})`);
                     }
                 } else {
-                    crawlerLog.info(`Stopping pagination (saved: ${saved}, page: ${pageNo})`);
+                    crawlerLog.info(`Stopping pagination (saved: ${saved}/${RESULTS_WANTED}, page: ${pageNo}/${MAX_PAGES})`);
                 }
             }
         });
