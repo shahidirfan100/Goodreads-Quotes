@@ -1,0 +1,64 @@
+{
+  "title": "Goodreads Quotes Scraper",
+  "description": "Extract inspirational quotes from Goodreads by tag, author, or search query. Supports pagination and automatic deduplication.",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "startUrl": {
+      "title": "Start URL",
+      "type": "string",
+      "description": "Start scraping from a specific Goodreads quotes URL. If provided, this overrides tag/author/search parameters.",
+      "editor": "textfield",
+      "example": "https://www.goodreads.com/quotes/tag/love"
+    },
+    "tag": {
+      "title": "Quote Tag",
+      "type": "string",
+      "description": "Search quotes by tag (e.g., 'inspirational', 'love', 'wisdom', 'life'). Most popular option.",
+      "editor": "textfield",
+      "prefill": "inspirational"
+    },
+    "author": {
+      "title": "Author Name",
+      "type": "string",
+      "description": "Search quotes by author name (e.g., 'Albert Einstein', 'Maya Angelou'). Leave empty to use tag instead.",
+      "editor": "textfield"
+    },
+    "search": {
+      "title": "Search Query",
+      "type": "string",
+      "description": "Free-text search for quotes containing specific words or phrases.",
+      "editor": "textfield"
+    },
+    "results_wanted": {
+      "title": "Maximum number of quotes",
+      "type": "integer",
+      "description": "The maximum number of quotes to collect. Default is 100.",
+      "minimum": 1,
+      "maximum": 10000,
+      "default": 100,
+      "editor": "number"
+    },
+    "max_pages": {
+      "title": "Maximum number of pages",
+      "type": "integer",
+      "description": "Safety limit on the number of pages to scrape. Each page typically contains 30 quotes.",
+      "minimum": 1,
+      "maximum": 100,
+      "editor": "number",
+      "default": 20
+    },
+    "proxyConfiguration": {
+      "title": "Proxy configuration",
+      "type": "object",
+      "description": "Proxy settings for scraping. Residential proxies recommended for best reliability.",
+      "editor": "proxy",
+      "default": {
+        "useApifyProxy": true,
+        "apifyProxyGroups": ["RESIDENTIAL"]
+      }
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}
