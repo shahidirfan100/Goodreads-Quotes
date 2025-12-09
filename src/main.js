@@ -97,11 +97,11 @@ async function main() {
         }
 
         // Parse quotes from HTML
-        function parseHtmlQuotes($) {
+        function parseHtmlQuotes($, logger = log) {
             const quotes = [];
             // Try multiple container selectors to be more robust
             const containers = $('div.quote, div.quoteDetails, .quote, .quoteDetails');
-            crawlerLog.info(`Found ${containers.length} quote containers on page`);
+            logger.info(`Found ${containers.length} quote containers on page`);
 
             containers.each((_, elem) => {
                 try {
@@ -159,18 +159,18 @@ async function main() {
                     log.debug(`Failed to parse quote element: ${err.message}`);
                 }
             });
-            crawlerLog.info(`Extracted ${quotes.length} quotes from HTML parsing`);
+            logger.info(`Extracted ${quotes.length} quotes from HTML parsing`);
             return quotes;
         }
 
         // Find next page link
-        function findNextPage($, currentUrl) {
+        function findNextPage($, currentUrl, logger = log) {
             // Try to find actual next page links first
             const nextLink = $('a.next_page').attr('href') ||
                            $('div.pagination a.next_page').attr('href') ||
                            $('a[rel="next"]').attr('href');
             if (nextLink) {
-                log.debug(`Found next page link: ${nextLink}`);
+                logger.debug(`Found next page link: ${nextLink}`);
                 return toAbs(nextLink, currentUrl);
             }
 
@@ -180,7 +180,7 @@ async function main() {
                 // Look for the last pagination link that might be "next"
                 const lastLink = paginationLinks.last().attr('href');
                 if (lastLink && !lastLink.includes('#') && !lastLink.includes('javascript:')) {
-                    log.debug(`Using last pagination link: ${lastLink}`);
+                    logger.debug(`Using last pagination link: ${lastLink}`);
                     return toAbs(lastLink, currentUrl);
                 }
             }
@@ -193,10 +193,10 @@ async function main() {
                 const nextPage = currentPage + 1;
                 urlObj.searchParams.set('page', String(nextPage));
                 const nextUrl = urlObj.href;
-                log.debug(`Constructed next page URL: ${nextUrl} (from page ${currentPage} to ${nextPage})`);
+                logger.debug(`Constructed next page URL: ${nextUrl} (from page ${currentPage} to ${nextPage})`);
                 return nextUrl;
             } catch (err) {
-                log.debug(`Failed to construct next page URL: ${err.message}`);
+                logger.debug(`Failed to construct next page URL: ${err.message}`);
                 return null;
             }
         }
@@ -234,7 +234,7 @@ async function main() {
                 } else {
                     // Fallback to HTML parsing
                     crawlerLog.info('JSON API unavailable, parsing HTML');
-                    quotes = parseHtmlQuotes($);
+                    quotes = parseHtmlQuotes($, crawlerLog);
                 }
 
                 crawlerLog.info(`Extracted ${quotes.length} quotes from page ${pageNo}`);
@@ -259,7 +259,7 @@ async function main() {
 
                 // Handle pagination
                 if (saved < RESULTS_WANTED && pageNo < MAX_PAGES) {
-                    const nextUrl = findNextPage($, request.url);
+                    const nextUrl = findNextPage($, request.url, crawlerLog);
                     if (nextUrl) {
                         crawlerLog.info(`Enqueueing next page: ${nextUrl} (current saved: ${saved}, page: ${pageNo})`);
                         await enqueueLinks({
