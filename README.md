@@ -26,18 +26,6 @@ This scraper employs a dual-extraction strategy for maximum reliability:
 1. **JSON API (Primary)**: Fast extraction using Goodreads internal API endpoints
 2. **HTML Parsing (Fallback)**: Precise CSS selector-based extraction when API is unavailable
 
-### Optimized CSS Selectors
-
-The scraper uses highly specific CSS selectors for accurate data extraction:
-
-- **Quote Container**: `div.quote`, `div.quoteDetails` (fallback)
-- **Quote Text**: `div.quoteText`
-- **Author Name**: `span.authorOrTitle`
-- **Book Title**: `a.authorOrTitle`
-- **Tags**: `div.greyText.smallText.left a[href*="/quotes/tag/"]`
-- **Likes Count**: `div.right`
-- **Pagination**: `div.pagination > a.next_page`
-
 This precision ensures reliable scraping even when Goodreads updates their HTML structure.
 
 ## 📋 What Data Can You Extract?
